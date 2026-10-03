@@ -53,4 +53,4 @@ class H(BaseHTTPRequestHandler):
             }))
 
 
-ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_forever()
+ThreadingHTTPServer((sys.argv[3] if len(sys.argv) > 3 else "127.0.0.1", int(sys.argv[1])), H).serve_forever()

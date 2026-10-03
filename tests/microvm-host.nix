@@ -10,35 +10,50 @@ let
       args = [ "-c" "echo persisted > $out" ];
     }
   '';
+  microvmHost = llm: {
+    imports = [ self.nixosModules.default ];
+
+    virtualisation = {
+      memorySize = 4096;
+      cores = 2;
+    };
+
+    environment.systemPackages = [ pkgs.python3 ];
+
+    qwen-code-dev = {
+      sshAuthorizedKeys = [ sshKeys.snakeOilEd25519PublicKey ];
+      llmPort = 18080;
+      vcpu = 1;
+      memory = 1536;
+      diskSize = 512;
+    }
+    // llm;
+  };
 in
 pkgs.testers.runNixOSTest {
   name = "qwen-code-dev-microvm-host";
 
   nodes = {
-    host = {
-      imports = [ self.nixosModules.default ];
+    host = microvmHost { };
 
-      virtualisation = {
-        memorySize = 4096;
-        cores = 2;
-      };
+    lan = { nodes, ... }: microvmHost { llmHost = nodes.remote.networking.primaryIPAddress; };
 
-      environment.systemPackages = [ pkgs.python3 ];
-
-      qwen-code-dev = {
-        sshAuthorizedKeys = [ sshKeys.snakeOilEd25519PublicKey ];
-        llmPort = 18080;
-        vcpu = 1;
-        memory = 1536;
-        diskSize = 512;
-      };
-    };
+    vpn = microvmHost { llmHost = "10.99.0.1"; };
 
     remote = {
-      networking.firewall.allowedTCPPorts = [ 8000 ];
-      systemd.services.web = {
-        wantedBy = [ "multi-user.target" ];
-        script = "${pkgs.python3}/bin/python3 -m http.server 8000";
+      networking.firewall.allowedTCPPorts = [
+        8000
+        18080
+      ];
+      systemd.services = {
+        web = {
+          wantedBy = [ "multi-user.target" ];
+          script = "${pkgs.python3}/bin/python3 -m http.server 8000";
+        };
+        llm = {
+          wantedBy = [ "multi-user.target" ];
+          script = "${pkgs.python3}/bin/python3 ${fakeLlm} 18080 /tmp/llm.log 0.0.0.0";
+        };
       };
     };
   };
@@ -58,27 +73,59 @@ pkgs.testers.runNixOSTest {
 
     start_all()
     remote.wait_for_open_port(8000)
-    host.wait_for_unit("microvm@qwen-code-dev.service")
-    host.succeed("install -m 600 ${sshKeys.snakeOilEd25519PrivateKey} /root/key")
+    remote.wait_for_open_port(18080)
+    remote_address = address(remote)
+
+    for machine in [host, lan, vpn]:
+        machine.wait_for_unit("microvm@qwen-code-dev.service")
+        machine.succeed("install -m 600 ${sshKeys.snakeOilEd25519PrivateKey} /root/key")
+        machine.succeed("systemd-run --unit=decoy-any python3 -m http.server --bind 0.0.0.0 18082")
+        machine.wait_for_open_port(18082)
+
     host.succeed("systemd-run --unit=fake-llm python3 ${fakeLlm} 18080 /tmp/llm.log")
     host.succeed("systemd-run --unit=decoy-lo python3 -m http.server --bind 127.0.0.1 18081")
-    host.succeed("systemd-run --unit=decoy-any python3 -m http.server --bind 0.0.0.0 18082")
     host.wait_for_open_port(18080)
     host.wait_for_open_port(18081)
-    host.wait_for_open_port(18082)
+    lan.succeed("systemd-run --unit=decoy-lo python3 -m http.server --bind 127.0.0.1 18080")
+    lan.wait_for_open_port(18080)
+    vpn.succeed("ip link add vpn0 type dummy && ip address add 10.99.0.1/32 dev vpn0 && ip link set vpn0 up")
+    vpn.succeed("systemd-run --unit=fake-llm python3 ${fakeLlm} 18080 /tmp/llm.log 10.99.0.1")
+    vpn.succeed("systemd-run --unit=decoy-lo python3 -m http.server --bind 127.0.0.1 18081")
+    vpn.wait_for_open_port(18080, "10.99.0.1")
+    vpn.wait_for_open_port(18081)
 
-    with subtest("The microvm reaches the LLM port of the host and nothing else on it"):
+    with subtest("LLM on the NixOS host"):
         host.wait_until_succeeds(f"{ssh} true", timeout=1200)
         host.succeed(guest_connects("10.0.2.2", 18080))
         host.fail(guest_connects("10.0.2.2", 18081))
         host.fail(guest_connects("10.0.2.2", 18082))
         host.fail(guest_connects("10.0.2.2", 22))
         host.fail(guest_connects(address(host), 18082))
-        host.succeed(guest_connects(address(remote), 8000))
-
-    with subtest("qwen-code in the microvm uses the LLM on the host"):
+        host.succeed(guest_connects(remote_address, 8000))
         assert "Hello from the local LLM." in host.succeed(qwen)
         host.succeed("grep -q chat/completions /tmp/llm.log")
+
+    with subtest("LLM on another machine in the local network"):
+        lan.wait_until_succeeds(f"{ssh} true", timeout=1200)
+        base_url = lan.succeed(f"{ssh} 'echo $OPENAI_BASE_URL'").strip()
+        assert base_url == f"http://{remote_address}:18080/v1", base_url
+        lan.fail(guest_connects("10.0.2.2", 18080))
+        lan.fail(guest_connects("10.0.2.2", 18082))
+        lan.fail(guest_connects(address(lan), 18082))
+        assert "Hello from the local LLM." in lan.succeed(qwen)
+        remote.succeed("grep -q chat/completions /tmp/llm.log")
+
+    with subtest("LLM on a VPN address of the NixOS host"):
+        vpn.wait_until_succeeds(f"{ssh} true", timeout=1200)
+        base_url = vpn.succeed(f"{ssh} 'echo $OPENAI_BASE_URL'").strip()
+        assert base_url == "http://10.99.0.1:18080/v1", base_url
+        vpn.succeed(guest_connects("10.99.0.1", 18080))
+        vpn.fail(guest_connects("10.99.0.1", 18082))
+        vpn.fail(guest_connects("10.0.2.2", 18081))
+        vpn.fail(guest_connects("10.0.2.2", 18082))
+        vpn.fail(guest_connects(address(vpn), 18082))
+        assert "Hello from the local LLM." in vpn.succeed(qwen)
+        vpn.succeed("grep -q chat/completions /tmp/llm.log")
 
     with subtest("Writable nix store persists across restarts"):
         built = host.succeed(f"{ssh} 'nix-build --no-out-link ${storeTest}'").strip().splitlines()[-1]

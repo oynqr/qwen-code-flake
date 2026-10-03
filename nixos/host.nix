@@ -1,7 +1,8 @@
 { guest, microvm }:
-{ config, ... }:
+{ config, lib, ... }:
 let
   cfg = config.qwen-code-dev;
+  llm = import ./llm.nix { inherit lib cfg; };
 in
 {
   imports = [
@@ -24,7 +25,7 @@ in
           meta skuid != "microvm" accept
           ct state established,related accept
           fib daddr type != local accept
-          ip daddr 127.0.0.1 tcp dport ${toString cfg.llmPort} accept
+          ${llm.nftablesRule}
           meta l4proto { tcp, udp } th dport 53 accept
           reject
         }

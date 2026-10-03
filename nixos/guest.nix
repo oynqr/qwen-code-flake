@@ -1,11 +1,13 @@
 { self }:
 {
   config,
+  lib,
   pkgs,
   ...
 }:
 let
   cfg = config.qwen-code-dev;
+  llm = import ./llm.nix { inherit lib cfg; };
 in
 {
   imports = [ ./options.nix ];
@@ -92,7 +94,7 @@ in
 
     security.sudo.wheelNeedsPassword = false;
 
-    environment.variables.OPENAI_BASE_URL = "http://10.0.2.2:${toString cfg.llmPort}/v1";
+    environment.variables.OPENAI_BASE_URL = llm.baseUrl;
 
     environment.systemPackages = [
       self.packages.${pkgs.stdenv.hostPlatform.system}.qwen-code
