@@ -1,0 +1,36 @@
+--- a/packages/cli/src/ui/AppContainer.tsx
++++ b/packages/cli/src/ui/AppContainer.tsx
+@@ -931,6 +931,7 @@
+     extensionManager,
+     historyManager.addItem,
+     config.getWorkingDir(),
++    settings.merged.general?.enableAutoUpdate !== false,
+   );
+ 
+   const { providerUpdateRequest, dismissProviderUpdate } = useProviderUpdates(
+--- a/packages/cli/src/ui/hooks/useExtensionUpdates.ts
++++ b/packages/cli/src/ui/hooks/useExtensionUpdates.ts
+@@ -216,6 +216,7 @@
+   extensionManager: ExtensionManager,
+   addItem: UseHistoryManagerReturn['addItem'],
+   cwd: string,
++  checkForUpdates: boolean = true,
+ ) => {
+   const [extensionsUpdateState, dispatchExtensionStateUpdate] = useReducer(
+     extensionUpdatesReducer,
+@@ -224,6 +225,7 @@
+   const extensions = extensionManager.getLoadedExtensions();
+ 
+   useEffect(() => {
++    if (!checkForUpdates) return;
+     (async () => {
+       const extensionsToCheck = extensions.filter((extension) => {
+         const currentStatus = extensionsUpdateState.extensionStatuses.get(
+@@ -246,6 +248,7 @@
+       dispatchExtensionStateUpdate({ type: 'BATCH_CHECK_END' });
+     })();
+   }, [
++    checkForUpdates,
+     extensions,
+     extensionManager,
+     extensionsUpdateState.extensionStatuses,

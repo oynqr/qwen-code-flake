@@ -4,7 +4,7 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
   outputs =
-    { nixpkgs, ... }:
+    { self, nixpkgs }:
     let
       forAllSystems = nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed;
     in
@@ -13,6 +13,14 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          systemDefaults = pkgs.writeText "qwen-code-system-defaults.json" (
+            builtins.toJSON {
+              "$version" = 4;
+              privacy.usageStatisticsEnabled = false;
+              general.enableAutoUpdate = false;
+              telemetry.enabled = false;
+            }
+          );
           qwen-code = pkgs.qwen-code.overrideAttrs (
             finalAttrs: prevAttrs: {
               version = "0.24.7";
@@ -23,6 +31,11 @@
                 tag = "v${finalAttrs.version}";
                 hash = "sha256-vFRBbW7sLXvVzmBrN47Q7jMdLY/2ebhguMW5TXeiX/Y=";
               };
+
+              patches = (prevAttrs.patches or [ ]) ++ [
+                ./patches/usage-statistics-default-off.patch
+                ./patches/extension-update-check-setting.patch
+              ];
 
               npmDeps = null;
 
@@ -38,6 +51,7 @@
                 ++ [
                   pkgs.pnpm_11
                   pkgs.pnpmConfigHook
+                  pkgs.makeWrapper
                 ];
 
               postPatch = ''
@@ -56,6 +70,12 @@
                     "rm -rf node_modules packages/*/node_modules && pnpm install --offline --prod --frozen-lockfile --ignore-scripts"
                   ]
                   prevAttrs.installPhase;
+
+              postInstall = (prevAttrs.postInstall or "") + ''
+                wrapProgram $out/bin/qwen \
+                  --set-default QWEN_CODE_SYSTEM_DEFAULTS_PATH ${systemDefaults} \
+                  --set-default QWEN_CODE_DISABLE_PRECONNECT 1
+              '';
             }
           );
         in
@@ -64,6 +84,34 @@
           default = qwen-code;
         }
       );
+
+      checks =
+        nixpkgs.lib.genAttrs
+          [
+            "x86_64-linux"
+            "aarch64-linux"
+          ]
+          (
+            system:
+            let
+              pkgs = nixpkgs.legacyPackages.${system};
+              qwen = nixpkgs.lib.getExe self.packages.${system}.qwen-code;
+            in
+            {
+              no-internet =
+                pkgs.runCommand "qwen-code-no-internet"
+                  {
+                    nativeBuildInputs = [
+                      pkgs.python3
+                      pkgs.strace
+                    ];
+                  }
+                  ''
+                    bash ${./tests/no-internet/check.sh} ${qwen} ${./tests/no-internet}
+                    touch $out
+                  '';
+            }
+          );
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-tree);
     };

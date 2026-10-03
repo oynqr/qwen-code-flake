@@ -1,0 +1,11 @@
+--- a/packages/core/src/config/config.ts
++++ b/packages/core/src/config/config.ts
+@@ -3376,7 +3376,7 @@
+       name: 'Qwen-Coder',
+       email: 'qwen-coder@alibabacloud.com',
+     };
+-    this.usageStatisticsEnabled = params.usageStatisticsEnabled ?? true;
++    this.usageStatisticsEnabled = params.usageStatisticsEnabled ?? false;
+     this.fileReadCacheDisabled = params.fileReadCacheDisabled ?? false;
+     this.outputLanguageFilePath = params.outputLanguageFilePath;
+ 
