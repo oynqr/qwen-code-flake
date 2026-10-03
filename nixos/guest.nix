@@ -94,7 +94,11 @@ in
 
     security.sudo.wheelNeedsPassword = false;
 
-    environment.variables.OPENAI_BASE_URL = llm.baseUrl;
+    environment.variables = {
+      OPENAI_BASE_URL = llm.baseUrl;
+      OPENAI_MODEL = cfg.llmModel;
+      OPENAI_API_KEY = "none";
+    };
 
     environment.systemPackages = [
       self.packages.${pkgs.stdenv.hostPlatform.system}.qwen-code

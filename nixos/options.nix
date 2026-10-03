@@ -50,6 +50,11 @@
       description = "TCP port of the LLM server. For an LLM on the NixOS host, this is the only host port the microvm can reach.";
     };
 
+    llmModel = lib.mkOption {
+      type = lib.types.nonEmptyStr;
+      description = "Name of the model on the LLM server.";
+    };
+
     sshAuthorizedKeys = lib.mkOption {
       type = lib.types.nonEmptyListOf lib.types.singleLineStr;
       description = "SSH public keys authorized to log in as the dev user.";

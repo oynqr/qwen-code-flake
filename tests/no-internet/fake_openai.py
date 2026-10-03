@@ -26,7 +26,7 @@ class H(BaseHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
         req = json.loads(self.rfile.read(n) or b"{}")
-        LOG.write(f"POST {self.path} stream={req.get('stream')}\n")
+        LOG.write(f"POST {self.path} stream={req.get('stream')} model={req.get('model')}\n")
         LOG.flush()
         text = "Hello from the local LLM."
         if req.get("stream"):
