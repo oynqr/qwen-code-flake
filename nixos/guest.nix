@@ -42,14 +42,32 @@ in
           readOnly = true;
         }
       ];
+      writableStoreOverlay = "/nix/.rw-store";
       volumes = [
         {
           image = "qwen-code-dev-home.img";
           mountPoint = "/home";
           size = cfg.diskSize;
         }
+        {
+          image = "qwen-code-dev-nix-store.img";
+          mountPoint = config.microvm.writableStoreOverlay;
+          size = cfg.storeSize;
+        }
+        {
+          image = "qwen-code-dev-nix-var.img";
+          mountPoint = "/nix/var";
+          size = 1024;
+        }
       ];
     };
+
+    fileSystems."/nix/var".neededForBoot = true;
+
+    nix.settings.experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
 
     services.openssh = {
       enable = true;

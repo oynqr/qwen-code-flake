@@ -2,6 +2,14 @@
 let
   sshKeys = import "${pkgs.path}/nixos/tests/ssh-keys.nix" pkgs;
   fakeLlm = ./no-internet/fake_openai.py;
+  storeTest = pkgs.writeText "store-test.nix" ''
+    derivation {
+      name = "qwen-code-dev-store-test";
+      system = builtins.currentSystem;
+      builder = "/bin/sh";
+      args = [ "-c" "echo persisted > $out" ];
+    }
+  '';
 in
 pkgs.testers.runNixOSTest {
   name = "qwen-code-dev-microvm-host";
@@ -72,8 +80,17 @@ pkgs.testers.runNixOSTest {
         assert "Hello from the local LLM." in host.succeed(qwen)
         host.succeed("grep -q chat/completions /tmp/llm.log")
 
-    with subtest("Graceful shutdown keeps the home volume"):
+    with subtest("Writable nix store persists across restarts"):
+        built = host.succeed(f"{ssh} 'nix-build --no-out-link ${storeTest}'").strip().splitlines()[-1]
+        assert built.startswith("/nix/store/"), built
+        host.succeed("timeout 300 systemctl restart microvm@qwen-code-dev.service")
+        host.wait_until_succeeds(f"{ssh} true", timeout=1200)
+        host.succeed(f"{ssh} 'nix-store --check-validity {built}'")
+        assert host.succeed(f"{ssh} 'cat {built}'").strip() == "persisted"
+
+    with subtest("Graceful shutdown keeps the volumes"):
         host.succeed("timeout 300 systemctl stop microvm@qwen-code-dev.service")
-        host.succeed("test -e /var/lib/microvms/qwen-code-dev/qwen-code-dev-home.img")
+        for image in ["home", "nix-store", "nix-var"]:
+            host.succeed(f"test -e /var/lib/microvms/qwen-code-dev/qwen-code-dev-{image}.img")
   '';
 }

@@ -25,6 +25,12 @@
       description = "Size of the persistent /home volume in MiB.";
     };
 
+    storeSize = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 16384;
+      description = "Size of the persistent writable /nix/store overlay volume in MiB.";
+    };
+
     llmPort = lib.mkOption {
       type = lib.types.port;
       default = 11434;
