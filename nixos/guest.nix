@@ -74,6 +74,8 @@ in
 
     security.sudo.wheelNeedsPassword = false;
 
+    environment.variables.OPENAI_BASE_URL = "http://10.0.2.2:${toString cfg.llmPort}/v1";
+
     environment.systemPackages = [
       self.packages.${pkgs.stdenv.hostPlatform.system}.qwen-code
       pkgs.git

@@ -25,6 +25,12 @@
       description = "Size of the persistent /home volume in MiB.";
     };
 
+    llmPort = lib.mkOption {
+      type = lib.types.port;
+      default = 11434;
+      description = "The only TCP port on the host's loopback interface the microvm can reach, as 10.0.2.2.";
+    };
+
     sshAuthorizedKeys = lib.mkOption {
       type = lib.types.nonEmptyListOf lib.types.singleLineStr;
       description = "SSH public keys authorized to log in as the dev user.";
