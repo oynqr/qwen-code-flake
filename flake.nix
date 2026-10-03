@@ -1,10 +1,20 @@
 {
   description = "qwen-code overridden to the latest upstream release";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    microvm = {
+      url = "github:microvm-nix/microvm.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
 
   outputs =
-    { self, nixpkgs }:
+    {
+      self,
+      nixpkgs,
+      microvm,
+    }:
     let
       forAllSystems = nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed;
     in
@@ -85,6 +95,15 @@
         }
       );
 
+      nixosModules = {
+        qwen-code-dev-guest = import ./nixos/guest.nix { inherit self; };
+        qwen-code-dev = import ./nixos/host.nix {
+          inherit microvm;
+          guest = self.nixosModules.qwen-code-dev-guest;
+        };
+        default = self.nixosModules.qwen-code-dev;
+      };
+
       checks =
         nixpkgs.lib.genAttrs
           [
@@ -110,6 +129,9 @@
                     bash ${./tests/no-internet/check.sh} ${qwen} ${./tests/no-internet}
                     touch $out
                   '';
+            }
+            // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+              microvm-host = import ./tests/microvm-host.nix { inherit self pkgs; };
             }
           );
 
