@@ -107,6 +107,10 @@ in
       OPENAI_API_KEY = "none";
     };
 
+    environment.etc."qwen-code/settings.json".text = builtins.toJSON {
+      model.generationConfig.contextWindowSize = cfg.llmContextWindow;
+    };
+
     environment.systemPackages = [
       self.packages.${pkgs.stdenv.hostPlatform.system}.qwen-code
       pkgs.git

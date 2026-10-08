@@ -105,6 +105,9 @@ pkgs.testers.runNixOSTest {
         host.succeed(guest_connects(remote_address, 8000))
         assert "Hello from the local LLM." in host.succeed(qwen)
         host.succeed("grep -q 'chat/completions.*model=qwen-local' /tmp/llm.log")
+        assert '"contextWindowSize":262144' in host.succeed(
+            f"{ssh} 'cat /etc/qwen-code/settings.json'"
+        )
 
     with subtest("LLM on another machine in the local network"):
         lan.wait_until_succeeds(f"{ssh} true", timeout=1200)

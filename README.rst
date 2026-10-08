@@ -82,6 +82,9 @@ host. It can reach the Internet, but on the host only the LLM server.
       - Required
       - Name of the model on the LLM server. Auto mode might not work correctly on
         models that do not start with ``qwen``.
+    - - ``qwen-code-dev.llmContextWindow``
+      - ``262144``
+      - Context window in tokens that qwen-code assumes for the model.
     - - ``qwen-code-dev.llmHost``
       - ``"127.0.0.1"``
       - Host of the LLM server. ``"127.0.0.1"`` is the NixOS host. For other addresses

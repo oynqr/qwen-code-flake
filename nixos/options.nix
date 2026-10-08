@@ -58,6 +58,12 @@
       '';
     };
 
+    llmContextWindow = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 262144;
+      description = "Context window in tokens that qwen-code assumes for the model.";
+    };
+
     sshAuthorizedKeys = lib.mkOption {
       type = lib.types.nonEmptyListOf lib.types.singleLineStr;
       description = "SSH public keys authorized to log in as the dev user.";
