@@ -29,6 +29,10 @@
               privacy.usageStatisticsEnabled = false;
               general.enableAutoUpdate = false;
               telemetry.enabled = false;
+              permissions.autoMode.classifier.timeouts = {
+                stage1Ms = 120000;
+                stage2Ms = 600000;
+              };
             }
           );
           qwen-code = pkgs.qwen-code.overrideAttrs (

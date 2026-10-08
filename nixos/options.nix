@@ -52,7 +52,10 @@
 
     llmModel = lib.mkOption {
       type = lib.types.nonEmptyStr;
-      description = "Name of the model on the LLM server.";
+      description = ''
+        Name of the model on the LLM server. Auto mode might not work correctly on models
+        that do not start with "qwen".
+      '';
     };
 
     sshAuthorizedKeys = lib.mkOption {

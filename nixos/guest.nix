@@ -94,6 +94,13 @@ in
 
     security.sudo.wheelNeedsPassword = false;
 
+    warnings = lib.optionals (!lib.hasPrefix "qwen" (lib.toLower cfg.llmModel)) [
+      ''
+        qwen-code-dev.llmModel = "${cfg.llmModel}" does not start with "qwen".
+        Auto mode might not work correctly on models that do not start with "qwen".
+      ''
+    ];
+
     environment.variables = {
       OPENAI_BASE_URL = llm.baseUrl;
       OPENAI_MODEL = cfg.llmModel;

@@ -23,7 +23,7 @@ let
     qwen-code-dev = {
       sshAuthorizedKeys = [ sshKeys.snakeOilEd25519PublicKey ];
       llmPort = 18080;
-      llmModel = "local-model";
+      llmModel = "qwen-local";
       vcpu = 1;
       memory = 1536;
       diskSize = 512;
@@ -104,7 +104,7 @@ pkgs.testers.runNixOSTest {
         host.fail(guest_connects(address(host), 18082))
         host.succeed(guest_connects(remote_address, 8000))
         assert "Hello from the local LLM." in host.succeed(qwen)
-        host.succeed("grep -q 'chat/completions.*model=local-model' /tmp/llm.log")
+        host.succeed("grep -q 'chat/completions.*model=qwen-local' /tmp/llm.log")
 
     with subtest("LLM on another machine in the local network"):
         lan.wait_until_succeeds(f"{ssh} true", timeout=1200)
@@ -114,7 +114,7 @@ pkgs.testers.runNixOSTest {
         lan.fail(guest_connects("10.0.2.2", 18082))
         lan.fail(guest_connects(address(lan), 18082))
         assert "Hello from the local LLM." in lan.succeed(qwen)
-        remote.succeed("grep -q 'chat/completions.*model=local-model' /tmp/llm.log")
+        remote.succeed("grep -q 'chat/completions.*model=qwen-local' /tmp/llm.log")
 
     with subtest("LLM on a VPN address of the NixOS host"):
         vpn.wait_until_succeeds(f"{ssh} true", timeout=1200)
@@ -126,7 +126,7 @@ pkgs.testers.runNixOSTest {
         vpn.fail(guest_connects("10.0.2.2", 18082))
         vpn.fail(guest_connects(address(vpn), 18082))
         assert "Hello from the local LLM." in vpn.succeed(qwen)
-        vpn.succeed("grep -q 'chat/completions.*model=local-model' /tmp/llm.log")
+        vpn.succeed("grep -q 'chat/completions.*model=qwen-local' /tmp/llm.log")
 
     with subtest("Writable nix store persists across restarts"):
         built = host.succeed(f"{ssh} 'nix-build --no-out-link ${storeTest}'").strip().splitlines()[-1]

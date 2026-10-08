@@ -80,7 +80,8 @@ host. It can reach the Internet, but on the host only the LLM server.
       - SSH public keys that can log in as ``dev``.
     - - ``qwen-code-dev.llmModel``
       - Required
-      - Name of the model on the LLM server.
+      - Name of the model on the LLM server. Auto mode might not work correctly on
+        models that do not start with ``qwen``.
     - - ``qwen-code-dev.llmHost``
       - ``"127.0.0.1"``
       - Host of the LLM server. ``"127.0.0.1"`` is the NixOS host. For other addresses
