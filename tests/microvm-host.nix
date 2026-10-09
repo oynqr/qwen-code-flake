@@ -139,9 +139,16 @@ pkgs.testers.runNixOSTest {
         host.succeed(f"{ssh} 'nix-store --check-validity {built}'")
         assert host.succeed(f"{ssh} 'cat {built}'").strip() == "persisted"
 
+    with subtest("SSH host keys persist across restarts"):
+        fingerprint = f"{ssh} 'ssh-keygen -lf /var/lib/ssh/ssh_host_ed25519_key.pub'"
+        before = host.succeed(fingerprint)
+        host.succeed("timeout 300 systemctl restart microvm@qwen-code-dev.service")
+        host.wait_until_succeeds(f"{ssh} true", timeout=1200)
+        assert host.succeed(fingerprint) == before
+
     with subtest("Graceful shutdown keeps the volumes"):
         host.succeed("timeout 300 systemctl stop microvm@qwen-code-dev.service")
-        for image in ["home", "nix-store", "nix-var"]:
+        for image in ["home", "nix-store", "nix-var", "ssh"]:
             host.succeed(f"test -e /var/lib/microvms/qwen-code-dev/qwen-code-dev-{image}.img")
   '';
 }

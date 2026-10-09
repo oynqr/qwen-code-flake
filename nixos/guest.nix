@@ -61,10 +61,16 @@ in
           mountPoint = "/nix/var";
           size = 1024;
         }
+        {
+          image = "qwen-code-dev-ssh.img";
+          mountPoint = "/var/lib/ssh";
+          size = 16;
+        }
       ];
     };
 
     fileSystems."/nix/var".neededForBoot = true;
+    fileSystems."/var/lib/ssh".neededForBoot = true;
 
     nix.settings.experimental-features = [
       "nix-command"
@@ -73,6 +79,12 @@ in
 
     services.openssh = {
       enable = true;
+      hostKeys = [
+        {
+          path = "/var/lib/ssh/ssh_host_ed25519_key";
+          type = "ed25519";
+        }
+      ];
       settings = {
         PasswordAuthentication = false;
         KbdInteractiveAuthentication = false;
